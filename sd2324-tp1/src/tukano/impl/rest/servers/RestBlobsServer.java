@@ -8,6 +8,7 @@ import tukano.api.java.Blobs;
 import tukano.impl.rest.servers.utils.CustomLoggingFilter;
 import tukano.impl.rest.servers.utils.GenericExceptionMapper;
 import utils.Args;
+import utils.DropBoxUtil;
 
 
 public class RestBlobsServer extends AbstractRestServer {
@@ -17,6 +18,7 @@ public class RestBlobsServer extends AbstractRestServer {
 
 	RestBlobsServer(int port) {
 		super( Log, Blobs.NAME, port);
+		DropBoxUtil.setAccessToken(Args.valueOf("-"..., true));
 	}
 	
 	
