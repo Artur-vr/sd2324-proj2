@@ -7,6 +7,9 @@ import io.grpc.stub.StreamObserver;
 import tukano.api.java.Blobs;
 import tukano.impl.grpc.generated_java.BlobsGrpc;
 import tukano.impl.grpc.generated_java.BlobsProtoBuf.*;
+import tukano.impl.grpc.generated_java.BlobsProtoBuf.DownloadResult;
+import tukano.impl.grpc.generated_java.BlobsProtoBuf.UploadArgs;
+import tukano.impl.grpc.generated_java.BlobsProtoBuf.UploadResult;
 import tukano.impl.api.java.ExtendedBlobs;
 import tukano.impl.java.servers.JavaBlobs;
 
@@ -40,7 +43,7 @@ public class GrpcBlobsServerStub extends AbstractGrpcStub implements BlobsGrpc.A
 		else
 			responseObserver.onError(errorCodeToStatus(res.error()));
 	}
-
+	
 	@Override
 	public void delete(DeleteArgs request, StreamObserver<DeleteResult> responseObserver) {
 		var res = impl.delete(request.getBlobId(), request.getToken());
@@ -51,7 +54,7 @@ public class GrpcBlobsServerStub extends AbstractGrpcStub implements BlobsGrpc.A
 		else
 			responseObserver.onError(errorCodeToStatus(res.error()));
 
-	}
+    }
 
 	@Override
 	public void deleteAllBlobs(DeleteAllBlobsArgs request, StreamObserver<DeleteAllBlobsResult> responseObserver) {
@@ -63,6 +66,5 @@ public class GrpcBlobsServerStub extends AbstractGrpcStub implements BlobsGrpc.A
 		else
 			responseObserver.onError(errorCodeToStatus(res.error()));
 
-	}
-
+    }
 }

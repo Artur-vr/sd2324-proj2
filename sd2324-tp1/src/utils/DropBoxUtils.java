@@ -7,6 +7,8 @@ import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.Gson;
+
+import org.hsqldb.persist.Log;
 import org.pac4j.scribe.builder.api.DropboxApi20;
 
 import java.io.FileOutputStream;
@@ -120,7 +122,7 @@ public class DropBoxUtils {
         }
     }
 
-    public void upload(String filePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
+    public void uploadFromPath(String filePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
 
         byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
 
@@ -135,6 +137,22 @@ public class DropBoxUtils {
 
         if ( response.getCode() != HTTP_SUCCESS )
             throw new RuntimeException(String.format("Failed to upload file: %s, Status: %d, \nReason: %s\n", filePath, response.getCode(), response.getBody()));
+
+    }
+
+    public void uploadBytes(byte[] fileBytes, String destinationPath) throws IOException, ExecutionException, InterruptedException {
+
+        OAuthRequest uploadFile = new OAuthRequest(Verb.POST, UPLOAD_V2_URL);
+        uploadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
+        uploadFile.addHeader("Dropbox-API-Arg", json.toJson(new UploadFileArgs(destinationPath)));
+        uploadFile.setPayload(fileBytes);
+
+        service.signRequest(accessToken, uploadFile);
+
+        Response response = service.execute(uploadFile);
+
+        if ( response.getCode() != HTTP_SUCCESS )
+            throw new RuntimeException(String.format("Failed to upload file: Status: %d, \nReason: %s\n", response.getCode(), response.getBody()));
 
     }
 
@@ -203,7 +221,7 @@ public class DropBoxUtils {
 
     }
 
-    public void download(String localFilePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
+    public void downloadToPath(String localFilePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
 
         OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
         downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
@@ -218,6 +236,33 @@ public class DropBoxUtils {
         FileOutputStream fileOutputStream = new FileOutputStream(localFilePath);
         response.getStream().transferTo(fileOutputStream);
 
+    }
+
+    public byte[] downloadBytes(String destinationPath) throws IOException, ExecutionException, InterruptedException {
+
+        OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
+        downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
+        downloadFile.addHeader("Dropbox-API-Arg", "{\"path\": \"" + destinationPath + "\"}");
+
+        service.signRequest(accessToken, downloadFile);
+
+        Response response = service.execute(downloadFile);
+        if ( response.getCode() != HTTP_SUCCESS )
+            throw new RuntimeException(String.format("Failed to download file: %s, Status: %d, \nReason: %s\n", destinationPath, response.getCode(), response.getBody()));
+
+        return response.getBody().getBytes();
+        
+    }
+
+
+    public void cleanState(){
+        // Clean the state of the dropbox account
+        try {
+            this.delete("/temp");
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            System.out.println("Failed to clean the state of the dropbox account");
+            e.printStackTrace();
+        }
     }
 
 }

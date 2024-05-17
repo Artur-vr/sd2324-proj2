@@ -11,12 +11,12 @@ import utils.Args;
 import utils.DropBoxUtils;
 
 
-public class RestBlobsServer extends AbstractRestServer {
+public class RestBlobsServerDropBox extends AbstractRestServer {
 	public static final int PORT = 5678;
 	
-	private static Logger Log = Logger.getLogger(RestBlobsServer.class.getName());
+	private static Logger Log = Logger.getLogger(RestBlobsServerDropBox.class.getName());
 
-	RestBlobsServer(int port) {
+	RestBlobsServerDropBox(int port) {
 		super( Log, Blobs.NAME, port);
 		//DropBoxUtils.setAccessToken(Args.valueOf("-"..., true));
 	}
@@ -32,5 +32,8 @@ public class RestBlobsServer extends AbstractRestServer {
 	public static void main(String[] args) {
 		Args.use(args);
 		new RestBlobsServer(Args.valueOf("-port", PORT)).start();
-	}	
+		if(Boolean.parseBoolean(args[0]) == true){
+			DropBoxUtils.getInstance().cleanState();
+		}
+	}
 }
