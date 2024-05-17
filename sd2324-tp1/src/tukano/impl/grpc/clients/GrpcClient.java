@@ -46,12 +46,11 @@ public class GrpcClient {
 			var sslContext = GrpcSslContexts.configure(SslContextBuilder.forClient().trustManager(trustManagerFactory))
 					.build();
 
-			//var channel  = NettyChannelBuilder.forAddress(serverURI.getHost(), serverURI.getPort()).sslContext(sslContext).build();
+			this.channel  = NettyChannelBuilder.forAddress(serverURI.getHost(), serverURI.getPort()).sslContext(sslContext).build();
 
-			this.channel = NettyChannelBuilder.forAddress(serverURI.getHost(), serverURI.getPort())
-			 		.sslContext(sslContext).usePlaintext().enableRetry().build();
+			//this.channel = NettyChannelBuilder.forAddress(serverURI.getHost(), serverURI.getPort())
+			 		//.sslContext(sslContext).usePlaintext().enableRetry().build();
 
-			//stub = GrpcClient.newBlockingStub(channel);
 		} catch (Exception x) {
 			x.printStackTrace();
 			throw new RuntimeException(x);
