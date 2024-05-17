@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import com.google.protobuf.ByteString;
 
+import java.net.URI;
 import tukano.api.java.Result;
 import tukano.impl.api.java.ExtendedBlobs;
 import tukano.impl.grpc.generated_java.BlobsGrpc;
@@ -22,8 +23,6 @@ public class GrpcBlobsClient extends GrpcClient implements ExtendedBlobs {
 		this.stub = BlobsGrpc.newBlockingStub( super.channel );
 	}
 
-	
-	
 	@Override
 	public Result<Void> upload(String blobId, byte[] bytes) {
 		return super.toJavaResult(() -> {
@@ -68,14 +67,16 @@ public class GrpcBlobsClient extends GrpcClient implements ExtendedBlobs {
 				.build());			
 		});	
 	}
-	
+
 	@Override
-	public Result<Void> delete(String blobId, String token) {
+	public Result<Void> delete(String blobURL, String token) {
+		var blobId = blobURL.substring( blobURL.lastIndexOf('/') + 1);
 		return super.toJavaResult(() -> {
 			stub.delete( DeleteArgs.newBuilder()
-				.setBlobId(blobId)
+					.setBlobId(blobId)
 				.setToken(token)
-				.build());			
+				.build());
 		});	
 	}
+
 }

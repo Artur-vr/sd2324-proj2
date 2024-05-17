@@ -79,8 +79,11 @@ public class JavaBlobs implements ExtendedBlobs {
 
 		var file = toFilePath(blobId);
 
-		if (file == null)
+		if ( file == null )
 			return error(BAD_REQUEST);
+
+		if( !file.exists() )
+			return error(NOT_FOUND);
 
 		try (var fis = new FileInputStream(file)) {
 			int n;
