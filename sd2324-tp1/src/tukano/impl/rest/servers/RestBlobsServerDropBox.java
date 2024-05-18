@@ -31,9 +31,9 @@ public class RestBlobsServerDropBox extends AbstractRestServer {
 	
 	public static void main(String[] args) {
 		Args.use(args);
-		new RestBlobsServer(Args.valueOf("-port", PORT)).start();
-		if(Boolean.parseBoolean(args[0]) == true){
-			DropBoxUtils.getInstance().cleanState();
-		}
+		new RestBlobsServerDropBox(Args.valueOf("-port", PORT)).start();
+		// if(Boolean.parseBoolean(args[0]) == true){
+		// 	DropBoxUtils.getInstance().cleanState();
+		// }
 	}
 }

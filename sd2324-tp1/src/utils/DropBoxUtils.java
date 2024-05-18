@@ -8,6 +8,8 @@ import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.Gson;
 
+import tukano.api.java.Result;
+
 import org.hsqldb.persist.Log;
 import org.pac4j.scribe.builder.api.DropboxApi20;
 
@@ -18,6 +20,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
+
+import static tukano.api.java.Result.error;
+import static tukano.api.java.Result.ok;
+import static tukano.api.java.Result.ErrorCode;
 
 public class DropBoxUtils {
 
@@ -42,11 +49,15 @@ public class DropBoxUtils {
     private final Gson json;
     private final OAuth20Service service;
     private final OAuth2AccessToken accessToken;
+    private static Logger Log = Logger.getLogger(DropBoxUtils.class.getName());
+
 
     private DropBoxUtils() {
         json = new Gson();
         accessToken = new OAuth2AccessToken(accessTokenStr);
         service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
+
+
     }
 
     public static DropBoxUtils getInstance() {
@@ -207,7 +218,7 @@ public class DropBoxUtils {
 
     }
 
-    public void delete(String path) throws IOException, ExecutionException, InterruptedException {
+    public Result<Void> delete(String path) throws IOException, ExecutionException, InterruptedException {
 
         OAuthRequest deleteFile = new OAuthRequest(Verb.POST, DELETE_FILE_URL);
         deleteFile.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
@@ -216,8 +227,13 @@ public class DropBoxUtils {
         service.signRequest(accessToken, deleteFile);
 
         Response response = service.execute(deleteFile);
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to delete file: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+        
+        if ( response.getCode() != HTTP_SUCCESS ){
+            //throw new RuntimeException(String.format("Failed to delete file: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+            Log.severe("Failed to delete file: " + path + ", Status: " + response.getCode() + ", \nReason: " + response.getBody());
+            return error(getErrorCodeFrom(response.getCode()));
+        }
+        return ok();
 
     }
 
@@ -257,12 +273,34 @@ public class DropBoxUtils {
 
     public void cleanState(){
         // Clean the state of the dropbox account
+        
         try {
-            this.delete("/temp");
+            Result<Void> result = this.delete("/temp");
+
+            if (Result.error(result.error()) == Result.error(ErrorCode.OK) || Result.error(result.error()) == Result.error(ErrorCode.NOT_FOUND) || Result.error(result.error()) == Result.error(ErrorCode.CONFLICT)){
+                System.out.println("State cleaned successfully");
+            } else {
+                Log.severe("Failed to clean the state of the dropbox account. 1");
+            }
+
         } catch (IOException | ExecutionException | InterruptedException e) {
-            System.out.println("Failed to clean the state of the dropbox account");
+            Log.severe("Failed to clean the state of the dropbox account. 2");
             e.printStackTrace();
         }
+        
     }
+
+    public static ErrorCode getErrorCodeFrom(int status) {
+		return switch (status) {
+		case 200, 204 -> ErrorCode.OK;
+		case 409 -> ErrorCode.CONFLICT;
+		case 403 -> ErrorCode.FORBIDDEN;
+		case 404 -> ErrorCode.NOT_FOUND;
+		case 400 -> ErrorCode.BAD_REQUEST;
+		case 500 -> ErrorCode.INTERNAL_ERROR;
+		case 501 -> ErrorCode.NOT_IMPLEMENTED;
+		default -> ErrorCode.INTERNAL_ERROR;
+		};
+	}
 
 }
