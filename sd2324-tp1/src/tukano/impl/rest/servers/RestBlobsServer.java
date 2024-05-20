@@ -18,7 +18,6 @@ public class RestBlobsServer extends AbstractRestServer {
 
 	RestBlobsServer(int port) {
 		super( Log, Blobs.NAME, port);
-		//DropBoxUtils.setAccessToken(Args.valueOf("-"..., true));
 	}
 	
 	

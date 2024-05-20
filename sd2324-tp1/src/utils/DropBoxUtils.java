@@ -9,6 +9,7 @@ import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.Gson;
 
 import tukano.api.java.Result;
+import tukano.api.java.Result.ErrorCode;
 
 import org.hsqldb.persist.Log;
 import org.pac4j.scribe.builder.api.DropboxApi20;
@@ -20,7 +21,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import static tukano.api.java.Result.error;
 import static tukano.api.java.Result.ok;
@@ -51,18 +54,24 @@ public class DropBoxUtils {
     private final OAuth2AccessToken accessToken;
     private static Logger Log = Logger.getLogger(DropBoxUtils.class.getName());
 
+    // private static void enableDebugLogging() {
+    //     Log.setLevel(Level.ALL);
+    //     ConsoleHandler handler = new ConsoleHandler();
+    //     handler.setLevel(Level.ALL);
+    //     Log.addHandler(handler);
+    // }
+
 
     private DropBoxUtils() {
         json = new Gson();
         accessToken = new OAuth2AccessToken(accessTokenStr);
         service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
-
-
     }
 
     public static DropBoxUtils getInstance() {
         if ( instance == null )
             instance = new DropBoxUtils();
+        //enableDebugLogging(); // Enable debug logging when instance is created
         return instance;
     }
 
@@ -133,161 +142,188 @@ public class DropBoxUtils {
         }
     }
 
-    public void uploadFromPath(String filePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
-
-        byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
-
-        OAuthRequest uploadFile = new OAuthRequest(Verb.POST, UPLOAD_V2_URL);
-        uploadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
-        uploadFile.addHeader("Dropbox-API-Arg", json.toJson(new UploadFileArgs(destinationPath)));
-        uploadFile.setPayload(fileBytes);
-
-        service.signRequest(accessToken, uploadFile);
-
-        Response response = service.execute(uploadFile);
-
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to upload file: %s, Status: %d, \nReason: %s\n", filePath, response.getCode(), response.getBody()));
-
+    public Result<Void> uploadFromPath(String filePath, String destinationPath) {
+        Log.info(String.format("DropBoxUtils: Uploading file from path: %s to: %s", filePath, destinationPath));
+        try {
+            byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
+            return uploadBytes(fileBytes, destinationPath);
+        } catch (IOException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("STATUSS: %s. Exception occurred while trying to upload file from path: %s\n message: %s", statusCode, filePath, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
+        }
     }
-
-    public void uploadBytes(byte[] fileBytes, String destinationPath) throws IOException, ExecutionException, InterruptedException {
-
-        OAuthRequest uploadFile = new OAuthRequest(Verb.POST, UPLOAD_V2_URL);
-        uploadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
-        uploadFile.addHeader("Dropbox-API-Arg", json.toJson(new UploadFileArgs(destinationPath)));
-        uploadFile.setPayload(fileBytes);
-
-        service.signRequest(accessToken, uploadFile);
-
-        Response response = service.execute(uploadFile);
-
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to upload file: Status: %d, \nReason: %s\n", response.getCode(), response.getBody()));
-
+    public Result<Void> uploadBytes(byte[] fileBytes, String destinationPath) {
+        Log.info(String.format("DropBoxUtils: Uploading bytes to: %s", destinationPath));
+        try {
+            OAuthRequest uploadFile = new OAuthRequest(Verb.POST, UPLOAD_V2_URL);
+            uploadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
+            uploadFile.addHeader("Dropbox-API-Arg", json.toJson(new UploadFileArgs(destinationPath)));
+            uploadFile.setPayload(fileBytes);
+    
+            service.signRequest(accessToken, uploadFile);
+            Response response = service.execute(uploadFile);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to upload file: Status: %d, \nReason: %s\n", response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+            return ok();
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to upload bytes to: %s STATUSS: %s.\n%s", destinationPath, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
+        }
     }
-
-    public void createDirectory(String path) throws IOException, ExecutionException, InterruptedException {
-
-        OAuthRequest createFolder = new OAuthRequest(Verb.POST, CREATE_FOLDER_V2_URL);
-        createFolder.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        createFolder.setPayload(json.toJson(new CreateFolderV2Args(path, false)));
-
-        service.signRequest(accessToken, createFolder);
-
-        Response response = service.execute(createFolder);
-
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new IOException(String.format("Failed to create directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
-
+    
+    public Result<Void> createDirectory(String path) {
+        Log.info(String.format("DropBoxUtils: Creating directory: %s", path));
+        try {
+            OAuthRequest createFolder = new OAuthRequest(Verb.POST, CREATE_FOLDER_V2_URL);
+            createFolder.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+            createFolder.setPayload(json.toJson(new CreateFolderV2Args(path, false)));
+    
+            service.signRequest(accessToken, createFolder);
+            Response response = service.execute(createFolder);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to create directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+            return ok();
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to create directory: %s STATUSS: %s.\n%s", path, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
+        }
     }
-
-    public void listDirectory(String path) throws IOException, ExecutionException, InterruptedException {
-
-        List<String> directoryContents = new ArrayList<>();
-
-        OAuthRequest listDirectory = new OAuthRequest(Verb.POST, LIST_FOLDER_URL);
-        listDirectory.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        listDirectory.setPayload(json.toJson(new ListFolderArgs(path)));
-
-        service.signRequest(accessToken, listDirectory);
-
-        Response response = service.execute(listDirectory);
-
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to list directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
-
-        var responseJson = json.fromJson(response.getBody(), ListFolderReturn.class);
-        responseJson.getEntries().forEach( e -> directoryContents.add( e.toString() ) );
-
-        while( responseJson.has_more() ) {
-            listDirectory = new OAuthRequest(Verb.POST, LIST_FOLDER_CONTINUE_URL);
+    
+    public Result<List<String>> listDirectory(String path) {
+        Log.info(String.format("DropBoxUtils: Listing directory: %s", path));
+        try {
+            List<String> directoryContents = new ArrayList<>();
+            OAuthRequest listDirectory = new OAuthRequest(Verb.POST, LIST_FOLDER_URL);
             listDirectory.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-
-            listDirectory.setPayload(json.toJson(new ListFolderContinueArgs(responseJson.getCursor())));
+            listDirectory.setPayload(json.toJson(new ListFolderArgs(path)));
+    
             service.signRequest(accessToken, listDirectory);
-
-            response = service.execute(listDirectory);
-
-            if ( response.getCode() != HTTP_SUCCESS )
-                throw new RuntimeException(String.format("Failed to list directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
-
-            responseJson = json.fromJson(response.getBody(), ListFolderReturn.class);
-            responseJson.getEntries().forEach( e -> directoryContents.add( e.toString() ) );
+            Response response = service.execute(listDirectory);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to list directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+    
+            var responseJson = json.fromJson(response.getBody(), ListFolderReturn.class);
+            responseJson.getEntries().forEach(e -> directoryContents.add(e.toString()));
+    
+            while (responseJson.has_more()) {
+                listDirectory = new OAuthRequest(Verb.POST, LIST_FOLDER_CONTINUE_URL);
+                listDirectory.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+                listDirectory.setPayload(json.toJson(new ListFolderContinueArgs(responseJson.getCursor())));
+                service.signRequest(accessToken, listDirectory);
+                response = service.execute(listDirectory);
+    
+                if (response.getCode() != HTTP_SUCCESS) {
+                    Log.severe(String.format("Failed to list directory: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+                    return error(getErrorCodeFrom(response.getCode()));
+                }
+    
+                responseJson = json.fromJson(response.getBody(), ListFolderReturn.class);
+                responseJson.getEntries().forEach(e -> directoryContents.add(e.toString()));
+            }
+            return ok(directoryContents);
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to list directory: %s STATUSS: %s.\n%s", path, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
         }
-
     }
-
-    public Result<Void> delete(String path) throws IOException, ExecutionException, InterruptedException {
-
-        OAuthRequest deleteFile = new OAuthRequest(Verb.POST, DELETE_FILE_URL);
-        deleteFile.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        deleteFile.setPayload("{\"path\":\"" + path + "\"}");
-
-        service.signRequest(accessToken, deleteFile);
-
-        Response response = service.execute(deleteFile);
-        
-        if ( response.getCode() != HTTP_SUCCESS ){
-            //throw new RuntimeException(String.format("Failed to delete file: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
-            Log.severe("Failed to delete file: " + path + ", Status: " + response.getCode() + ", \nReason: " + response.getBody());
-            return error(getErrorCodeFrom(response.getCode()));
+    
+    public Result<Void> downloadToPath(String localFilePath, String destinationPath) {
+        Log.info(String.format("DropBoxUtils: Downloading to path: %s from: %s", localFilePath, destinationPath));
+        try {
+            OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
+            downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
+            downloadFile.addHeader("Dropbox-API-Arg", "{\"path\": \"" + destinationPath + "\"}");
+    
+            service.signRequest(accessToken, downloadFile);
+            Response response = service.execute(downloadFile);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to download file: %s, Status: %d, \nReason: %s\n", destinationPath, response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+    
+            try (FileOutputStream fileOutputStream = new FileOutputStream(localFilePath)) {
+                response.getStream().transferTo(fileOutputStream);
+            }
+            return ok();
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to download to path: %s STATUSS: %s.\n%s", destinationPath, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
         }
-        return ok();
-
+    }
+    
+    public Result<byte[]> downloadBytes(String destinationPath) {
+        Log.info(String.format("DropBoxUtils: Downloading bytes from: %s", destinationPath));
+        try {
+            OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
+            downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
+            downloadFile.addHeader("Dropbox-API-Arg", "{\"path\": \"" + destinationPath + "\"}");
+    
+            service.signRequest(accessToken, downloadFile);
+            Response response = service.execute(downloadFile);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to download file: %s, Status: %d, \nReason: %s\n", destinationPath, response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+    
+            return ok(response.getBody().getBytes());
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to download bytes from: %s STATUSS: %s.\n%s", destinationPath, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
+        }
     }
 
-    public void downloadToPath(String localFilePath, String destinationPath) throws IOException, ExecutionException, InterruptedException {
-
-        OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
-        downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
-        downloadFile.addHeader("Dropbox-API-Arg", "{\"path\": \"" + destinationPath + "\"}");
-
-        service.signRequest(accessToken, downloadFile);
-
-        Response response = service.execute(downloadFile);
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to download file: %s, Status: %d, \nReason: %s\n", destinationPath, response.getCode(), response.getBody()));
-
-        FileOutputStream fileOutputStream = new FileOutputStream(localFilePath);
-        response.getStream().transferTo(fileOutputStream);
-
+    public Result<Void> delete(String path) {
+        Log.info(String.format("DropBoxUtils: Deleting file: %s", path));
+        try {
+            OAuthRequest deleteFile = new OAuthRequest(Verb.POST, DELETE_FILE_URL);
+            deleteFile.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+            deleteFile.setPayload("{\"path\":\"" + path + "\"}");
+    
+            service.signRequest(accessToken, deleteFile);
+            Response response = service.execute(deleteFile);
+    
+            if (response.getCode() != HTTP_SUCCESS) {
+                Log.severe(String.format("Failed to delete file: %s, Status: %d, \nReason: %s\n", path, response.getCode(), response.getBody()));
+                return error(getErrorCodeFrom(response.getCode()));
+            }
+            return ok();
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            int statusCode = extractStatusCodeFromException(e);
+            Log.severe(String.format("Exception occurred while trying to delete file: %s STATUSS: %s.\n%s", path, statusCode, e.getMessage()));
+            return error(getErrorCodeFrom(statusCode));
+        }
     }
-
-    public byte[] downloadBytes(String destinationPath) throws IOException, ExecutionException, InterruptedException {
-
-        OAuthRequest downloadFile = new OAuthRequest(Verb.POST, DOWNLOAD_FILE_URL);
-        downloadFile.addHeader(CONTENT_TYPE_HDR, OCTET_STREAM_CONTENT_TYPE);
-        downloadFile.addHeader("Dropbox-API-Arg", "{\"path\": \"" + destinationPath + "\"}");
-
-        service.signRequest(accessToken, downloadFile);
-
-        Response response = service.execute(downloadFile);
-        if ( response.getCode() != HTTP_SUCCESS )
-            throw new RuntimeException(String.format("Failed to download file: %s, Status: %d, \nReason: %s\n", destinationPath, response.getCode(), response.getBody()));
-
-        return response.getBody().getBytes();
-        
-    }
-
-
+    
+  
     public void cleanState(){
         // Clean the state of the dropbox account
+        Log.info("DropboxUtils: Cleaning state of the dropbox account");
         
-        try {
-            Result<Void> result = this.delete("/temp");
+        Result<Void> result = this.delete("/temp");
 
-            if (Result.error(result.error()) == Result.error(ErrorCode.OK) || Result.error(result.error()) == Result.error(ErrorCode.NOT_FOUND) || Result.error(result.error()) == Result.error(ErrorCode.CONFLICT)){
-                System.out.println("State cleaned successfully");
-            } else {
-                Log.severe("Failed to clean the state of the dropbox account. 1");
-            }
-
-        } catch (IOException | ExecutionException | InterruptedException e) {
-            Log.severe("Failed to clean the state of the dropbox account. 2");
-            e.printStackTrace();
+        if (Result.error(result.error()) == Result.error(ErrorCode.OK) || Result.error(result.error()) == Result.error(ErrorCode.NOT_FOUND) || Result.error(result.error()) == Result.error(ErrorCode.CONFLICT)){
+            System.out.println("State cleaned successfully");
+        } else {
+            Log.severe("Failed to clean the state of the dropbox account. 1");
         }
-        
+    
     }
 
     public static ErrorCode getErrorCodeFrom(int status) {
@@ -302,5 +338,26 @@ public class DropBoxUtils {
 		default -> ErrorCode.INTERNAL_ERROR;
 		};
 	}
+
+    private int extractStatusCodeFromException(Exception e) {
+        // Default status code for unhandled exceptions
+        int statusCode = 500;
+        
+        // Check if the exception contains the status code
+        String message = e.getMessage();
+        if (message != null) {
+            // Extract status code from message, if present
+            String[] parts = message.split("Status: ");
+            if (parts.length > 1) {
+                try {
+                    statusCode = Integer.parseInt(parts[1].split(",")[0].trim());
+                } catch (NumberFormatException ex) {
+                    Log.severe("Failed to parse status code from exception message");
+                }
+            }
+        }
+        
+        return statusCode;
+    }
 
 }

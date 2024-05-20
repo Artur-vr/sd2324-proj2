@@ -15,12 +15,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
-
-import org.checkerframework.checker.units.qual.C;
 
 import tukano.api.java.Result;
 import tukano.impl.api.java.ExtendedBlobs;
@@ -52,21 +49,17 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 		if (file == null)
 			return error(BAD_REQUEST);
 
-		// if (file.exists()) {
-		// 	if (Arrays.equals(Hash.sha256(bytes), Hash.sha256(IO.read(file))))
-		// 		return ok();
-		// 	else
-		// 		return error(CONFLICT);
+		Result<byte[]> preVersion = DropBoxUtils.getInstance().downloadBytes(file.getAbsolutePath());
 
-		//}
-		try {
-			DropBoxUtils.getInstance().uploadBytes(bytes, file.getAbsolutePath());
-		} catch (IOException | ExecutionException | InterruptedException e) {
-			Log.severe("Error uploading file to dropbox");
-			e.printStackTrace();
-			return error(CONFLICT);
+		if (preVersion.error() != NOT_FOUND || preVersion.isOK()) {
+			if (Arrays.equals(Hash.sha256(bytes), Hash.sha256(preVersion.value())))
+				return ok();
+			else
+				return error(CONFLICT);
 		}
-		return ok();
+
+		
+		return DropBoxUtils.getInstance().uploadBytes(bytes, file.getAbsolutePath());
 	}
 
 	@Override
@@ -77,18 +70,8 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 		if (file == null)
 			return error(BAD_REQUEST);
 
-		try {
-			return ok(DropBoxUtils.getInstance().downloadBytes(file.getAbsolutePath()));
-		} catch (IOException | ExecutionException | InterruptedException e) {
-			Log.severe("Error downloading file from dropbox");
-			e.printStackTrace();
-			return error(NOT_FOUND);
-		}
-
-		// if (file.exists())
-		// 	return ok(IO.read(file));
-		// else
-		// 	return error(NOT_FOUND);
+		
+		return DropBoxUtils.getInstance().downloadBytes(file.getAbsolutePath());
 	}
 
 	@Override
@@ -100,8 +83,20 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 		if ( file == null )
 			return error(BAD_REQUEST);
 
-		if( !file.exists() )
-			return error(NOT_FOUND);
+		//create the file locally
+		try {
+			Files.createDirectories(Path.of(file.getParent()));
+			Files.createFile(Path.of(file.getAbsolutePath()));
+		} catch (IOException e) {
+			Log.severe("Error creating file locally");
+			e.printStackTrace();
+			return error(INTERNAL_ERROR);
+		}
+		
+		//download the file from dropbox
+		
+		DropBoxUtils.getInstance().downloadToPath(file.getAbsolutePath(),file.getAbsolutePath());
+
 
 		try (var fis = new FileInputStream(file)) {
 			int n;
@@ -128,14 +123,8 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 		if (file == null)
 			return error(BAD_REQUEST);
 
-		try {
-			DropBoxUtils.getInstance().delete(file.getAbsolutePath());
-		} catch (IOException | ExecutionException | InterruptedException e) {
-			Log.severe("Error deleting file from dropbox");
-			e.printStackTrace();
-			return error(NOT_FOUND);
-		}
-		return ok();
+			
+		return DropBoxUtils.getInstance().delete(file.getAbsolutePath());
 	}
 	
 	@Override
@@ -145,18 +134,7 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 		if( ! Token.matches( token ) )
 			return error(FORBIDDEN);
 
-		
-
-		try {
-			DropBoxUtils.getInstance().delete(BLOBS_ROOT_DIR + userId);
-		} catch (IOException | ExecutionException | InterruptedException e) {
-			Log.severe("Error deleting AllBlobs from dropbox");
-			e.printStackTrace();
-			return error(INTERNAL_ERROR);
-		}
-		
-		return ok();
-	
+		return DropBoxUtils.getInstance().delete(BLOBS_ROOT_DIR + userId);
 	}
 	
 	private boolean validBlobId(String blobId) {
