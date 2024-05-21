@@ -2,9 +2,9 @@
 
 echo "Generating TLS credentials " 
 
-#rm -f *.jks *.cert
+rm -f *.jks *.cert
 
-#cp cacerts client-ts.jks
+cp cacerts client-ts.jks
 
 
 generateKeyStore() {

@@ -86,9 +86,11 @@ public class DropBoxUtils {
     // Define the CreateFolderV2Args class
     public static class CreateFolderV2Args {
         private final boolean autorename;
+        private final String path;
 
         public CreateFolderV2Args(String path, boolean autorename) {
             this.autorename = autorename;
+            this.path = path;
         }
     }
 
@@ -316,9 +318,9 @@ public class DropBoxUtils {
         // Clean the state of the dropbox account
         Log.info("DropboxUtils: Cleaning state of the dropbox account");
         
-        Result<Void> result = this.delete("/temp");
+        Result<Void> result = this.delete("/tmp");
 
-        if (Result.error(result.error()) == Result.error(ErrorCode.OK) || Result.error(result.error()) == Result.error(ErrorCode.NOT_FOUND) || Result.error(result.error()) == Result.error(ErrorCode.CONFLICT)){
+        if (result.isOK() || result.error() == ErrorCode.NOT_FOUND || result.error() == ErrorCode.CONFLICT){
             System.out.println("State cleaned successfully");
         } else {
             Log.severe("Failed to clean the state of the dropbox account. 1");

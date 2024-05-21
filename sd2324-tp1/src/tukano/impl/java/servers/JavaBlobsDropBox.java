@@ -51,7 +51,7 @@ public class JavaBlobsDropBox implements ExtendedBlobs {
 
 		Result<byte[]> preVersion = DropBoxUtils.getInstance().downloadBytes(file.getAbsolutePath());
 
-		if (preVersion.error() != NOT_FOUND || preVersion.isOK()) {
+		if (preVersion.isOK()) {
 			if (Arrays.equals(Hash.sha256(bytes), Hash.sha256(preVersion.value())))
 				return ok();
 			else
