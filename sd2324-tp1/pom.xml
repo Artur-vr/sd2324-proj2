@@ -7,7 +7,7 @@
 	<version>1</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<authors>68771-69632</authors>
+		<authors>55719-68771</authors>
 	</properties>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
