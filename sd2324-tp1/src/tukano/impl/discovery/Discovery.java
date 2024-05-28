@@ -9,7 +9,6 @@ import java.net.NetworkInterface;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -65,7 +64,7 @@ class DiscoveryImpl implements Discovery {
 
 	private static Discovery singleton;
 
-	private Map<String, Set<URI>> uris = new ConcurrentHashMap<>();
+	private Map<String, Map<URI,Long>> uris = new ConcurrentHashMap<>();
 	
 	synchronized static Discovery getInstance() {
 		if (singleton == null) {
@@ -106,17 +105,37 @@ class DiscoveryImpl implements Discovery {
 	@Override
 	public URI[] knownUrisOf(String serviceName, int minEntries) {
 		while(true) {
-			var res = uris.getOrDefault(serviceName, Collections.emptySet());
-			if( res.size() >= minEntries )
-				return res.toArray( new URI[res.size()]);
-			else
-				Sleep.ms(DISCOVERY_ANNOUNCE_PERIOD);
-				
+			////////////////////////
+			long now = System.currentTimeMillis();
+            long cutoff = now - 5000;
+            for (var serviceMap : uris.values()) {
+                serviceMap.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+            }
+			////////////////////////
+
+			var res = uris.getOrDefault(serviceName, Collections.emptyMap());
+            if( res.size() >= minEntries )
+                return res.keySet().toArray( new URI[res.size()]);
+            else
+                Sleep.ms(DISCOVERY_ANNOUNCE_PERIOD);
+
+
+			// var res = uris.getOrDefault(serviceName, Collections.emptySet());
+			// if( res.size() >= minEntries )
+			// 	return res.toArray( new URI[res.size()]);
 		}
 	}
 
 	private void startListener() {
 		Log.info(String.format("Starting discovery on multicast group: %s, port: %d\n", DISCOVERY_ADDR.getAddress(), DISCOVERY_ADDR.getPort()));
+
+		//start another thread that each 8 seconds deletes all uris
+		// new Thread(() -> {
+		// 	while(true) {
+		// 		Sleep.ms(DISCOVERY_ANNOUNCE_PERIOD * 8);
+		// 		uris.clear();
+		// 	}
+		// }).start();
 
 		new Thread(() -> {
 			try (var ms = new MulticastSocket(DISCOVERY_ADDR.getPort())) {
@@ -132,7 +151,9 @@ class DiscoveryImpl implements Discovery {
 						if (parts.length == 2) {
 							var serviceName = parts[0];
 							var uri = URI.create(parts[1]);
-							uris.computeIfAbsent(serviceName, (k) -> ConcurrentHashMap.newKeySet()).add( uri );
+							long timestamp = System.currentTimeMillis();
+                            uris.computeIfAbsent(serviceName, k -> new ConcurrentHashMap<>()).put(uri, timestamp);
+							//uris.computeIfAbsent(serviceName, (k) -> ConcurrentHashMap.newKeySet()).add( uri );
 						}
 
 					} catch (Exception x) {
