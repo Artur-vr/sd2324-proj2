@@ -60,7 +60,6 @@ public class JavaShorts implements ExtendedShorts {
 	private static final long SHORTS_CACHE_EXPIRATION = 3000;
 	private static final long BLOBS_USAGE_CACHE_EXPIRATION = 10000;
 
-	//flag
 	private boolean starting = true;
 
 	static record Credentials(String userId, String pwd) {
@@ -98,6 +97,11 @@ public class JavaShorts implements ExtendedShorts {
 			}).build(new CacheLoader<>() {
 				@Override
 				public Map<String, Long> load(String __) throws Exception {
+					if(starting){
+						startCacheUpdates();
+						starting = false;
+					}
+					
 					final var QUERY = "SELECT REGEXP_SUBSTRING(s.blobUrl, '^(\\w+:\\/\\/)?([^\\/]+)\\/([^\\/]+)') AS baseURI, count('*') AS usage From Short s GROUP BY baseURI";
 					var hits = DB.sql(QUERY, BlobServerCount.class);
 
@@ -115,10 +119,6 @@ public class JavaShorts implements ExtendedShorts {
 	@Override
 	public Result<Short> createShort(String userId, String password) {
 		Log.info(() -> format("createShort : userId = %s, pwd = %s\n", userId, password));
-		if(starting){
-			startCacheUpdates();
-			starting = false;
-		}
 
 		return errorOrResult(okUser(userId, password), user -> {
 			var shortId = format("%s-%d", userId, counter.incrementAndGet());
@@ -133,8 +133,8 @@ public class JavaShorts implements ExtendedShorts {
 				blobUrl += "|" + format("%s/%s/%s", uri2, Blobs.NAME, shortId);
 			}
 			////////
-			// var blobUrl = format("%s/%s/%s", getLeastLoadedBlobServerURI(), Blobs.NAME,
-			//////// shortId);
+			// var blobUrl = format("%s/%s/%s", getLeastLoadedBlobServerURI(), Blobs.NAME, shortId);
+			////////
 			var shrt = new Short(shortId, userId, blobUrl);
 
 			return DB.insertOne(shrt);
@@ -400,7 +400,7 @@ public class JavaShorts implements ExtendedShorts {
 	public void startCacheUpdates(){
         // Schedule a task to refresh the cache every 5 seconds
         executorService.scheduleAtFixedRate(() -> {
-			Log.info("Refreshing blob server list\n\n");
+			
             try {
                 var servers = blobCountCache.get(BLOB_COUNT);
 				
