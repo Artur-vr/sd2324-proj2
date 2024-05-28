@@ -16,6 +16,7 @@ import static utils.DB.getOne;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -30,7 +31,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.HashSet;
+//import java.util.HashSet;
 
 
 import com.google.common.cache.CacheBuilder;
@@ -106,23 +107,6 @@ public class JavaShorts implements ExtendedShorts {
 					for (var uri : BlobsClients.all())
 						candidates.putIfAbsent(uri.toString(), 0L);
 
-					////// new code for blob server replication
-					var iterator = candidates.keySet().iterator();
-					Set<String> blobClientsSet = new HashSet<>();
-					for (ExtendedBlobs blob : BlobsClients.all()) {
-						blobClientsSet.add(blob.toString());
-					}	
-
-					while (iterator.hasNext()) {
-						var key = iterator.next();
-						if (!blobClientsSet.contains(key)) {
-							//Log.info(() -> format("Removing blob server %s from the list of candidates", key));
-							removeFromBlobUrl(key);
-							iterator.remove();
-						}
-					}
-					////// new code for blob server replication
-
 					return candidates;
 
 				}
@@ -143,14 +127,6 @@ public class JavaShorts implements ExtendedShorts {
 			var uri1 = getLeastLoadedBlobServerURI();
 			var uri2 = getLeastLoadedBlobServerURI();
 			if (uri1.equals(uri2)) {
-				//Log.severe("only 1 blob server available!");
-				Map<String, Long> servers;
-				try {
-					servers = blobCountCache.get(BLOB_COUNT);
-					servers.compute(uri2, (k, v) -> v - 1L);
-				} catch (ExecutionException e) {
-					e.printStackTrace();
-				}
 				blobUrl = format("%s/%s/%s", uri1, Blobs.NAME, shortId);
 			} else {
 				blobUrl = format("%s/%s/%s", uri1, Blobs.NAME, shortId);
@@ -422,10 +398,24 @@ public class JavaShorts implements ExtendedShorts {
 	ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
 	public void startCacheUpdates(){
-        // Schedule a task to refresh the cache every 10 seconds
+        // Schedule a task to refresh the cache every 5 seconds
         executorService.scheduleAtFixedRate(() -> {
+			Log.info("Refreshing blob server list\n\n");
             try {
-                blobCountCache.get(BLOB_COUNT); 
+                var servers = blobCountCache.get(BLOB_COUNT);
+				
+				Set<String> uris = new HashSet<>();
+				for (ExtendedBlobs blob : BlobsClients.all()) {
+					uris.add(blob.toString());
+				}	
+
+				for (var server : servers.keySet()) {
+					if (!uris.contains(server)) {
+						Log.info(() -> format("Removing blob server %s from the list of candidates\n\n", server));
+						removeFromBlobUrl(server);
+						blobCountCache.invalidate(server);
+					}
+				}
             } catch (ExecutionException e) {
                 e.printStackTrace(); 
             }
@@ -433,61 +423,3 @@ public class JavaShorts implements ExtendedShorts {
     }
 
 }
-
-
-/*public void startCacheUpdates(){
-        // Schedule a task to refresh the cache every 10 seconds
-        executorService.scheduleAtFixedRate(() -> {
-			// for all blobs, search for one short in that blob and try to download it
-			// if it fails, remove the blob from the list of candidates and update the shorts
-			for (var uri : BlobsClients.all()) {
-				DB.transaction(hibernate -> {
-
-					// Query to find all Short entities containing the blobURL
-					var query = format("SELECT * FROM Short s WHERE s.blobUrl LIKE '%%%s%%'", uri);
-					List<Short> shorts = hibernate.createNativeQuery(query, Short.class).list();
-					var blobUrl = shorts.get(0).getBlobUrl().split("\\|");
-					//get the blobUrl containing the uri we are checking from blobsclients.all
-					String blobId = "";
-					if(blobUrl[0].contains(uri.toString()))
-						blobId = blobUrl[0];
-					else
-						blobId = blobUrl[1];
-
-					var check = Clients.BlobsClients.get().download(blobId);
-
-					if (!check.isOK()) {
-						for (Short shrt : shorts) {
-							// Remove the blobURL from the blobUrl attribute
-							String updatedBlobUrl = Stream.of(shrt.getBlobUrl().split("\\|"))
-									.filter(url -> !url.contains(uri.toString()))
-									.collect(Collectors.joining("|"));
-
-							var uri2 = getLeastLoadedBlobServerURI();
-
-							while(shrt.getBlobUrl().contains(uri2)){
-								uri2 = getLeastLoadedBlobServerURI();
-							}
-
-							updatedBlobUrl += "|" + format("%s/%s/%s", uri2, Blobs.NAME, shrt.getShortId());
-			
-							// Set the updated blobUrl
-							shrt.setBlobUrl(updatedBlobUrl);
-			
-							// Update the entity in the database
-							DB.updateOne(shrt);
-			
-							// Invalidate the cache for this shortId
-							shortsCache.invalidate(shrt.getShortId());
-
-						}
-						blobCountCache.invalidate(uri.toString());
-					}
-
-					
-				});
-				
-				
-			}
-        }, 0, 10, TimeUnit.SECONDS);
-    } */

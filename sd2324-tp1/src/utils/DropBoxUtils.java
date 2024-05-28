@@ -9,9 +9,7 @@ import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.Gson;
 
 import tukano.api.java.Result;
-import tukano.api.java.Result.ErrorCode;
 
-import org.hsqldb.persist.Log;
 import org.pac4j.scribe.builder.api.DropboxApi20;
 
 import java.io.FileOutputStream;
@@ -21,9 +19,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 import static tukano.api.java.Result.error;
 import static tukano.api.java.Result.ok;
@@ -54,13 +50,6 @@ public class DropBoxUtils {
     private final OAuth2AccessToken accessToken;
     private static Logger Log = Logger.getLogger(DropBoxUtils.class.getName());
 
-    // private static void enableDebugLogging() {
-    //     Log.setLevel(Level.ALL);
-    //     ConsoleHandler handler = new ConsoleHandler();
-    //     handler.setLevel(Level.ALL);
-    //     Log.addHandler(handler);
-    // }
-
 
     private DropBoxUtils() {
         json = new Gson();
@@ -71,7 +60,6 @@ public class DropBoxUtils {
     public static DropBoxUtils getInstance() {
         if ( instance == null )
             instance = new DropBoxUtils();
-        //enableDebugLogging(); // Enable debug logging when instance is created
         return instance;
     }
 
