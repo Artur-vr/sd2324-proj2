@@ -8,6 +8,7 @@ import tukano.api.java.Shorts;
 import tukano.impl.rest.servers.utils.CustomLoggingFilter;
 import tukano.impl.rest.servers.utils.GenericExceptionMapper;
 import utils.Args;
+import utils.kafka.sync.SyncPoint;
 
 
 public class RestShortsRepServer extends AbstractRestServer {
@@ -22,7 +23,10 @@ public class RestShortsRepServer extends AbstractRestServer {
 	
 	@Override
 	void registerResources(ResourceConfig config) {
-		config.register( RestShortsResource.class ); 
+		
+		SyncPoint<String> sync = new SyncPoint<>();
+		 
+		config.registerInstances(new RestShortsRepResource()); 
 		config.register(new GenericExceptionMapper());
 		config.register(new CustomLoggingFilter());
 	}
