@@ -2,43 +2,21 @@ package tukano.impl.rest.servers;
 
 import java.util.List;
 
-import org.apache.jute.Record;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.ext.Provider;
 import tukano.api.Short;
+import tukano.api.java.Shorts;
 import tukano.impl.api.java.ExtendedShorts;
 import tukano.impl.api.rest.RestExtendedShorts;
 import tukano.impl.java.servers.JavaShorts;
-import utils.IP;
-import utils.kafka.lib.KafkaPublisher;
-import utils.kafka.lib.KafkaSubscriber;
-import utils.kafka.lib.RecordProcessor;
-import utils.kafka.sync.SyncPoint;
 
 @Singleton
 @Provider
-public class RestShortsRepResource extends RestResource implements RestExtendedShorts, RecordProcessor {
+public class RestShortsRepResource<T extends Shorts> extends RestResource implements RestExtendedShorts {
 
 	final ExtendedShorts impl;
-
-	static final String FROM_BEGINNING = "earliest";
-	static final String TOPIC = "single_partition_topic";
-	static final String KAFKA_BROKERS = "kafka:9092";
-
-	final String replicaId;
-	final KafkaPublisher sender;
-	final KafkaSubscriber receiver;
-	final SyncPoint<String> sync;
 	
-	public RestShortsRepResource() {
-		this.replicaId = IP.hostName();
-		this.sender = KafkaPublisher.createPublisher(KAFKA_BROKERS);
-		this.receiver = KafkaSubscriber.createSubscriber(KAFKA_BROKERS, List.of(TOPIC), FROM_BEGINNING);
-		this.receiver.start(false, this);
-		this.sync = new SyncPoint<>();
-		
+	public RestShortsRepResource(T impl) {
 		this.impl = new JavaShorts();
 	}
 	
@@ -90,12 +68,5 @@ public class RestShortsRepResource extends RestResource implements RestExtendedS
 	@Override
 	public void deleteAllShorts(String userId, String password, String token) {
 		super.resultOrThrow( impl.deleteAllShorts(userId, password, token));
-	}
-
-
-	@Override
-	public void onReceive(ConsumerRecord<String, String> r) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'onReceive'");
 	}	
 }

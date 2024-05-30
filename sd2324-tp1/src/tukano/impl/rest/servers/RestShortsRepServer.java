@@ -14,7 +14,7 @@ import utils.kafka.sync.SyncPoint;
 public class RestShortsRepServer extends AbstractRestServer {
 	public static final int PORT = 24567;
 	
-	private static Logger Log = Logger.getLogger(RestShortsRepServer.class.getName());
+	private static Logger Log = Logger.getLogger(RestShortsServer.class.getName());
 
 	RestShortsRepServer() {
 		super( Log, Shorts.NAME, PORT);
@@ -26,7 +26,7 @@ public class RestShortsRepServer extends AbstractRestServer {
 		
 		SyncPoint<String> sync = new SyncPoint<>();
 		 
-		config.registerInstances(new RestShortsRepResource()); 
+		config.registerInstances(new RestShortsRepResource<>(new RepShorts())); 
 		config.register(new GenericExceptionMapper());
 		config.register(new CustomLoggingFilter());
 	}
