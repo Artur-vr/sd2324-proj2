@@ -10,12 +10,13 @@ import com.google.gson.Gson;
 import tukano.api.Short;
 import tukano.api.java.Result;
 import tukano.api.java.Shorts;
+import tukano.impl.api.java.ExtendedShorts;
 import utils.kafka.lib.KafkaPublisher;
 import utils.kafka.lib.KafkaSubscriber;
 import utils.kafka.lib.RecordProcessor;
 import utils.kafka.sync.SyncPoint;
 
-public class RepShorts implements Shorts, RecordProcessor {
+public class RepShorts implements ExtendedShorts, RecordProcessor {
 
 	private static final String SHORTS_TOPIC = "shortsTopic";
 
@@ -136,5 +137,14 @@ public class RepShorts implements Shorts, RecordProcessor {
 
 	private void receiveRemoveMessage(String value, long offset) {
 		// TODO Auto-generated method stub
+	}
+
+
+
+
+	@Override
+	public Result<Void> deleteAllShorts(String userId, String password, String token) {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException("Unimplemented method 'deleteAllShorts'");
 	}
 }
