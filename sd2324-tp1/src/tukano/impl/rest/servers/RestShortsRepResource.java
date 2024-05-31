@@ -81,7 +81,7 @@ public class RestShortsRepResource extends RestResource implements RestExtendedS
             sync.setResult(r.offset(),result);
 
         } catch (Exception e){
-            Log.severe("Exception in OnREceive function\n");
+            Log.severe("Exception in On Receive function\n");
         }
 
 	}	
