@@ -109,53 +109,98 @@ public class RestShortsRepResource extends RestResource implements RestExtendedS
 		
 		Result<Short> result = impl.createShort(userId, password);
 		if(result.isOK()) {
-			String shortData = gson.toJson(result.value());
-			publish(version, "createShort", shortData);
+			String encodedData = gson.toJson(result.value());
+			publish(version, "createShort", encodedData);
 			}
 		return super.resultOrThrow( impl.createShort(userId, password));
 	}
 
 	@Override
 	public void deleteShort(String shortId, String password) {
+		Result<Void> result = impl.deleteShort(shortId, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "deleteShort", encodedData);
+			}
 		super.resultOrThrow( impl.deleteShort(shortId, password));
 	}
 
 	@Override
 	public Short getShort(String shortId) {
+		Result<Short> result = impl.getShort(shortId);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "getShort", encodedData);
+			}
 		return super.resultOrThrow( impl.getShort(shortId));
 	}
 	@Override
 	public List<String> getShorts(String userId) {
+		Result<List<String>> result = impl.getShorts(userId);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "getShorts", encodedData);
+			}
 		return super.resultOrThrow( impl.getShorts(userId));
 	}
 
 	@Override
 	public void follow(String userId1, String userId2, boolean isFollowing, String password) {
+		Result<Void> result = impl.follow(userId1, userId2, isFollowing, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "follow", encodedData);
+			}
 		super.resultOrThrow( impl.follow(userId1, userId2, isFollowing, password));
 	}
 
 	@Override
 	public List<String> followers(String userId, String password) {
+		Result<List<String>> result = impl.followers(userId, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "followers", encodedData);
+			}
 		return super.resultOrThrow( impl.followers(userId, password));
 	}
 
 	@Override
 	public void like(String shortId, String userId, boolean isLiked, String password) {
+		Result<Void> result = impl.like(shortId, userId, isLiked, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "like", encodedData);
+			}
 		super.resultOrThrow( impl.like(shortId, userId, isLiked, password));
 	}
 
 	@Override
 	public List<String> likes(String shortId, String password) {
+		Result<List<String>> result = impl.likes(shortId, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "likes", encodedData);
+			}
 		return super.resultOrThrow( impl.likes(shortId, password));
 	}
 
 	@Override
 	public List<String> getFeed(String userId, String password) {
+		Result<List<String>> result = impl.getFeed(userId, password);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "getFeed", encodedData);
+			}
 		return super.resultOrThrow( impl.getFeed(userId, password));
 	}
 
 	@Override
 	public void deleteAllShorts(String userId, String password, String token) {
+		Result<Void> result = impl.deleteAllShorts(userId, password, token);
+		if(result.isOK()) {
+			String encodedData = gson.toJson(result.value());
+			publish(version, "deleteAllShorts", encodedData);
+			}
 		super.resultOrThrow( impl.deleteAllShorts(userId, password, token));
 	}
 	
@@ -171,8 +216,8 @@ public class RestShortsRepResource extends RestResource implements RestExtendedS
 			sync.waitForVersion(version, 2000);
 		}
 		
-		Result<Short> result = sync.waitForResult(offset);
-		return (Result<T>) result;
+		Result<T> result = sync.waitForResult(offset);
+		return  result;
 	}
 
 
