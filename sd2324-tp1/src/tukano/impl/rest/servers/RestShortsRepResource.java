@@ -1,6 +1,7 @@
 package tukano.impl.rest.servers;
 
 import java.util.List;
+
 import java.util.logging.Logger;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -22,29 +23,95 @@ import utils.kafka.sync.SyncPoint;
 
 @Singleton
 @Provider
-public class RestShortsRepResource extends RestResource implements RestExtendedShorts {
+public class RestShortsRepResource extends RestResource implements RestExtendedShorts, RecordProcessor {
 
 
 	final ExtendedShorts impl;
 	
-    private static final String KAFKA_BROKERS = "kafka:9092";
-    private static String TOPIC = "kafka-rep";
-    private static KafkaPublisher publisher;
-    private static KafkaSubscriber subscriber;
+	private static Logger Log = Logger.getLogger(RestShortsRepResource.class.getName());
+	
+	static final String FROM_BEGINNING = "earliest";
+	static final String TOPIC = "single_partition_topic";
+	static final String KAFKA_BROKERS = "kafka:9092";
+	
+	final String replicaId;
+	final KafkaPublisher publisher;
+	final KafkaSubscriber subscriber;
+	
+    protected Gson gson = new Gson();
     
-    private Gson gson = new Gson();
-    private SyncPoint syncPoint;
+    private SyncPoint<Result> sync;
+    
     private Long version;
     
-	public RestShortsRepResource() {
+	public RestShortsRepResource(long v) {
+		
 		this.impl = new JavaShorts();
+		this.version = v;
+		this.replicaId = IP.hostName();
+		
+		this.publisher = KafkaPublisher.createPublisher(KAFKA_BROKERS);
+        this.subscriber = KafkaSubscriber.createSubscriber(KAFKA_BROKERS, List.of(TOPIC), FROM_BEGINNING);
+        
+        this.sync = new SyncPoint<Result>();
+        this.subscriber.start(false,  this);
+        
+		
 	}
+	
+	@Override
+	public void onReceive(ConsumerRecord<String, String> r) {
+		
+		Result<?> result = null;
+		
+		try {
+            String method = r.key();
+            String[] param = r.value().split(",");
+            switch (method) {
+                case "createShort":
+                    result = impl.createShort(param[0], param[1]); break;
+                case "deleteShort":
+                    result = impl.deleteShort(param[0], param[1]); break;
+                case "getShort":
+                    result = impl.getShort(param[0]); break;
+                case "getShorts":
+                    result = impl.getShorts(param[0]); break;
+				case "follow":
+					result = impl.follow(param[0], param[1], Boolean.parseBoolean(param[2]), param[3]); break;
+                case "followers":
+                    result = impl.followers(param[0], param[1]); break;
+				case "like":
+					result = impl.like(param[0], param[1], Boolean.parseBoolean(param[2]), param[3]); break;
+				case "likes":
+					result = impl.likes(param[0], param[1]); break;
+				case "getFeed":
+					result = impl.getFeed(param[0], param[1]); break;
+				case "deleteAllShorts":
+					result = impl.deleteAllShorts(param[0], param[1], param[2]); break;
+                default:
+                    Log.severe("WRONG COMMAND\n");
+            }
+            sync.setResult(r.offset(),result);
+
+        } catch (Exception e){
+            Log.severe("Exception in OnREceive function\n");
+        }
+
+		
+	}
+	
 	
 	
 	
 	
 	@Override
 	public Short createShort(String userId, String password) {
+		
+		Result<Short> result = impl.createShort(userId, password);
+		if(result.isOK()) {
+			String shortData = gson.toJson(result.value());
+			publish(version, "createShort", shortData);
+			}
 		return super.resultOrThrow( impl.createShort(userId, password));
 	}
 
@@ -91,5 +158,22 @@ public class RestShortsRepResource extends RestResource implements RestExtendedS
 	public void deleteAllShorts(String userId, String password, String token) {
 		super.resultOrThrow( impl.deleteAllShorts(userId, password, token));
 	}
+	
+	
+	private <T> Result<T> publish(Long version, String op, String value){
+		if(this.version == null) {
+			this.version = 0L;
+		}
+		
+		long offset = publisher.publish(TOPIC, op, value);
+		this.version = offset;
+		if(version != null) {
+			sync.waitForVersion(version, 2000);
+		}
+		
+		Result<Short> result = sync.waitForResult(offset);
+		return (Result<T>) result;
+	}
+
 
 }

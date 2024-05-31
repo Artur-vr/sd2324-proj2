@@ -22,7 +22,7 @@ public class RestShortsRepServer extends AbstractRestServer {
 	
 	@Override
 	void registerResources(ResourceConfig config) {		 
-		config.registerInstances(new RestShortsRepResource()); 
+		config.registerInstances(new RestShortsRepResource(0L)); 
 		config.register(new GenericExceptionMapper());
 		config.register(new CustomLoggingFilter());
 	}
