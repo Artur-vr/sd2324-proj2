@@ -31,7 +31,7 @@ public class RestBlobsServerDropBox extends AbstractRestServer {
 	public static void main(String[] args) {
 		Args.use(args);
 		if(Boolean.parseBoolean(args[0]) == true){
-			Log.info("Cleaning state");
+			Log.info("Cleaning previous state");
 			DropBoxUtils.getInstance().cleanState();
 		}
 		

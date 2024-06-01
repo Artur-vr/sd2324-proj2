@@ -11,9 +11,9 @@ import utils.Args;
 
 
 public class RestShortsRepServer extends AbstractRestServer {
-	public static final int PORT = 24567;
+	public static final int PORT = 24555;
 	
-	private static Logger Log = Logger.getLogger(RestShortsServer.class.getName());
+	private static Logger Log = Logger.getLogger(RestShortsRepServer.class.getName());
 
 	RestShortsRepServer() {
 		super( Log, Shorts.NAME, PORT);
@@ -22,13 +22,13 @@ public class RestShortsRepServer extends AbstractRestServer {
 	
 	@Override
 	void registerResources(ResourceConfig config) {		 
-		config.registerInstances(new RestShortsRepResource(0L)); 
+		config.registerInstances(new RestShortsRepResource()); 
 		config.register(new GenericExceptionMapper());
 		config.register(new CustomLoggingFilter());
 	}
 	
 	public static void main(String[] args) {
 		Args.use(args);
-		new RestShortsServer().start();
+		new RestShortsRepServer().start();
 	}	
 }

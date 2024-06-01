@@ -129,14 +129,6 @@ class DiscoveryImpl implements Discovery {
 	private void startListener() {
 		Log.info(String.format("Starting discovery on multicast group: %s, port: %d\n", DISCOVERY_ADDR.getAddress(), DISCOVERY_ADDR.getPort()));
 
-		//start another thread that each 8 seconds deletes all uris
-		// new Thread(() -> {
-		// 	while(true) {
-		// 		Sleep.ms(DISCOVERY_ANNOUNCE_PERIOD * 8);
-		// 		uris.clear();
-		// 	}
-		// }).start();
-
 		new Thread(() -> {
 			try (var ms = new MulticastSocket(DISCOVERY_ADDR.getPort())) {
 				ms.joinGroup(DISCOVERY_ADDR, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()));

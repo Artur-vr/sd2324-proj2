@@ -8,8 +8,6 @@ import tukano.api.java.Blobs;
 import tukano.impl.rest.servers.utils.CustomLoggingFilter;
 import tukano.impl.rest.servers.utils.GenericExceptionMapper;
 import utils.Args;
-import utils.DropBoxUtils;
-
 
 public class RestBlobsServer extends AbstractRestServer {
 	public static final int PORT = 5678;

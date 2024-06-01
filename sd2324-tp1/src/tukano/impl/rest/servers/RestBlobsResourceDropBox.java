@@ -32,4 +32,5 @@ public class RestBlobsResourceDropBox extends RestResource implements RestExtend
 	public void deleteAllBlobs(String userId, String password) {
 		super.resultOrThrow( impl.deleteAllBlobs( userId, password ));
 	}
+	
 }
